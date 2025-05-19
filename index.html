@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pokémon Memory Game</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="header">
+        <h1 class="game-title">🎮 Pokémon Memory Game</h1>
+        <div class="controls">
+            <div class="control-group">
+                <label>Difficulty</label>
+                <select id="difficulty">
+                    <option value="easy">Easy (6 cards)</option>
+                    <option value="medium">Medium (12 cards)</option>
+                    <option value="hard">Hard (20 cards)</option>
+                </select>
+            </div>
+            <div class="control-group">
+                <label>Theme</label>
+                <select id="theme">
+                    <option value="light">Light</option>
+                    <option value="dark">Dark</option>
+                </select>
+            </div>
+            <button id="startBtn">Start Game</button>
+            <button id="resetBtn">Reset Game</button>
+        </div>
+    </div>
+
+    <div class="game-container">
+        <div class="status">
+            <div class="status-item">
+                <div class="status-label">Time Remaining</div>
+                <div class="status-value" id="timer">--:--</div>
+            </div>
+            <div class="status-item">
+                <div class="status-label">Clicks</div>
+                <div class="status-value" id="clicks">0</div>
+            </div>
+            <div class="status-item">
+                <div class="status-label">Pairs Matched</div>
+                <div class="status-value" id="matched">0</div>
+            </div>
+            <div class="status-item">
+                <div class="status-label">Pairs Left</div>
+                <div class="status-value" id="remaining">0</div>
+            </div>
+            <div class="status-item">
+                <div class="status-label">Total Pairs</div>
+                <div class="status-value" id="total">0</div>
+            </div>
+        </div>
+
+        <div id="game_grid"></div>
+        <div class="loading" id="loading" style="display: none;">
+            <div class="spinner"></div>
+            <p>Loading Pokémon...</p>
+        </div>
+    </div>
+
+    <div class="message" id="gameMessage">
+        <h2 id="messageTitle"></h2>
+        <p id="messageText"></p>
+        <button onclick="resetGame()">Play Again</button>
+    </div>
+
+    <div class="powerup-indicator" id="powerupIndicator">
+        Power-up Active! 🌟
+    </div>
+
+    <script src="index.js"></script>
+</body>
+</html>
