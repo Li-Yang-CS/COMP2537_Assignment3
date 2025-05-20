@@ -17,7 +17,7 @@ const gameState = {
 
 // Difficulty settings
 const difficulties = {
-    easy: { pairs: 3, time: 60 },
+    easy: { pairs: 3, time: 30 },
     medium: { pairs: 6, time: 90 },
     hard: { pairs: 8, time: 120 }
 };
