@@ -7,70 +7,52 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div class="header">
-        <h1 class="game-title">🎮 Pokémon Memory Game</h1>
+    <div class="container">
+        <h1>Pokémon Memory Game</h1>
+        
         <div class="controls">
-            <div class="control-group">
-                <label>Difficulty</label>
-                <select id="difficulty">
-                    <option value="easy">Easy (6 cards)</option>
-                    <option value="medium">Medium (12 cards)</option>
-                    <option value="hard">Hard (20 cards)</option>
-                </select>
-            </div>
-            <div class="control-group">
-                <label>Theme</label>
-                <select id="theme">
-                    <option value="light">Light</option>
-                    <option value="dark">Dark</option>
-                </select>
-            </div>
-            <button id="startBtn">Start Game</button>
-            <button id="resetBtn">Reset Game</button>
+            <select id="difficulty">
+                <option value="easy">Easy (3 pairs, 60s)</option>
+                <option value="medium">Medium (6 pairs, 90s)</option>
+                <option value="hard">Hard (8 pairs, 120s)</option>
+            </select>
+            <button id="start-btn">Start Game</button>
+            <button id="reset-btn">Reset</button>
+            <button id="theme-btn">Toggle Theme</button>
+            <button id="powerup-btn" disabled>Power-Up</button>
         </div>
-    </div>
 
-    <div class="game-container">
         <div class="status">
-            <div class="status-item">
-                <div class="status-label">Time Remaining</div>
-                <div class="status-value" id="timer">--:--</div>
+            <div class="stat">
+                <span>Time: </span>
+                <span id="timer">60</span>
             </div>
-            <div class="status-item">
-                <div class="status-label">Clicks</div>
-                <div class="status-value" id="clicks">0</div>
+            <div class="stat">
+                <span>Clicks: </span>
+                <span id="clicks">0</span>
             </div>
-            <div class="status-item">
-                <div class="status-label">Pairs Matched</div>
-                <div class="status-value" id="matched">0</div>
+            <div class="stat">
+                <span>Matches: </span>
+                <span id="matches">0/3</span>
             </div>
-            <div class="status-item">
-                <div class="status-label">Pairs Left</div>
-                <div class="status-value" id="remaining">0</div>
-            </div>
-            <div class="status-item">
-                <div class="status-label">Total Pairs</div>
-                <div class="status-value" id="total">0</div>
+            <div class="stat">
+                <span>Pairs Left: </span>
+                <span id="pairs-left">3</span>
             </div>
         </div>
 
-        <div id="game_grid"></div>
-        <div class="loading" id="loading" style="display: none;">
-            <div class="spinner"></div>
-            <p>Loading Pokémon...</p>
+        <div id="game-grid"></div>
+
+        <div id="message" class="message hidden">
+            <div class="message-content">
+                <h2 id="message-title"></h2>
+                <p id="message-text"></p>
+                <button id="play-again">Play Again</button>
+            </div>
         </div>
     </div>
 
-    <div class="message" id="gameMessage">
-        <h2 id="messageTitle"></h2>
-        <p id="messageText"></p>
-        <button onclick="resetGame()">Play Again</button>
-    </div>
-
-    <div class="powerup-indicator" id="powerupIndicator">
-        Power-up Active! 🌟
-    </div>
-
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
     <script src="index.js"></script>
 </body>
 </html>

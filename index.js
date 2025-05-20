@@ -1,310 +1,336 @@
-class PokemonMemoryGame {
-  constructor() {
-      this.gameState = {
-          cards: [],
-          flippedCards: [],
-          matchedPairs: 0,
-          clicks: 0,
-          timeLeft: 0,
-          timer: null,
-          gameActive: false,
-          powerupActive: false,
-          consecutiveMatches: 0
-      };
+// Game state
+const gameState = {
+    firstCard: null,
+    secondCard: null,
+    lockBoard: false,
+    gameActive: false,
+    gameStarted: false,
+    clicks: 0,
+    matches: 0,
+    totalPairs: 3,
+    timeLeft: 60,
+    timer: null,
+    difficulty: 'easy',
+    powerupUsed: false,
+    pokemonData: []
+};
 
-      this.difficulties = {
-          easy: { pairs: 3, time: 60 },
-          medium: { pairs: 6, time: 90 },
-          hard: { pairs: 10, time: 120 }
-      };
+// Difficulty settings
+const difficulties = {
+    easy: { pairs: 3, time: 60 },
+    medium: { pairs: 6, time: 90 },
+    hard: { pairs: 8, time: 120 }
+};
 
-      this.initializeEventListeners();
-      this.loadTheme();
-  }
-
-  initializeEventListeners() {
-      document.getElementById('startBtn').addEventListener('click', () => this.startGame());
-      document.getElementById('resetBtn').addEventListener('click', () => this.resetGame());
-      document.getElementById('theme').addEventListener('change', (e) => this.changeTheme(e.target.value));
-  }
-
-  async startGame() {
-      const difficulty = document.getElementById('difficulty').value;
-      const { pairs, time } = this.difficulties[difficulty];
-
-      this.resetGameState();
-      this.gameState.timeLeft = time;
-      
-      document.getElementById('loading').style.display = 'block';
-      document.getElementById('game_grid').innerHTML = '';
-
-      try {
-          await this.createGameBoard(pairs);
-          this.gameState.gameActive = true;
-          this.startTimer();
-          this.updateStatus();
-          document.getElementById('loading').style.display = 'none';
-      } catch (error) {
-          console.error('Error starting game:', error);
-          document.getElementById('loading').style.display = 'none';
-          this.showMessage('Error', 'Failed to load Pokémon. Please try again.');
-      }
-  }
-
-  async createGameBoard(pairs) {
-      // Fetch random Pokemon
-      const pokemon = await this.fetchRandomPokemon(pairs);
-      
-      // Create card pairs
-      this.gameState.cards = [...pokemon, ...pokemon]
-          .map((poke, index) => ({
-              id: index,
-              pokemon: poke,
-              matched: false
-          }))
-          .sort(() => Math.random() - 0.5);
-
-      // Update grid layout
-      const grid = document.getElementById('game_grid');
-      const cols = Math.ceil(Math.sqrt(pairs * 2));
-      grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
-
-      // Create DOM elements
-      grid.innerHTML = this.gameState.cards.map(card => `
-          <div class="card" data-id="${card.id}">
-              <div class="card-inner">
-                  <div class="card-face card-front">❓</div>
-                  <div class="card-face card-back">
-                      <img src="${card.pokemon.image}" alt="${card.pokemon.name}" 
-                           onerror="this.src='/api/placeholder/150/150'">
-                  </div>
-              </div>
-          </div>
-      `).join('');
-
-      // Add click listeners
-      grid.addEventListener('click', (e) => this.handleCardClick(e));
-      
-      document.getElementById('total').textContent = pairs;
-      document.getElementById('remaining').textContent = pairs;
-  }
-
-  async fetchRandomPokemon(count) {
-      const pokemon = [];
-      const usedIds = new Set();
-
-      while (pokemon.length < count) {
-          const id = Math.floor(Math.random() * 1025) + 1;
-          if (!usedIds.has(id)) {
-              usedIds.add(id);
-              try {
-                  const response = await fetch(`https://pokeapi.co/api/v2/pokemon/${id}`);
-                  if (response.ok) {
-                      const data = await response.json();
-                      pokemon.push({
-                          id: data.id,
-                          name: data.name,
-                          image: data.sprites.other['official-artwork'].front_default || 
-                                 data.sprites.front_default ||
-                                 '/api/placeholder/150/150'
-                      });
-                  }
-              } catch (error) {
-                  console.error(`Error fetching Pokemon ${id}:`, error);
-              }
-          }
-      }
-
-      return pokemon;
-  }
-
-  handleCardClick(event) {
-      if (!this.gameState.gameActive) return;
-
-      const cardElement = event.target.closest('.card');
-      if (!cardElement) return;
-
-      const cardId = parseInt(cardElement.dataset.id);
-      const card = this.gameState.cards[cardId];
-
-      // Prevent invalid clicks
-      if (card.matched || 
-          cardElement.classList.contains('flip') || 
-          this.gameState.flippedCards.length >= 2) {
-          return;
-      }
-
-      // Flip card
-      cardElement.classList.add('flip');
-      this.gameState.flippedCards.push({ element: cardElement, card });
-      this.gameState.clicks++;
-
-      if (this.gameState.flippedCards.length === 2) {
-          setTimeout(() => this.checkMatch(), 500);
-      }
-
-      this.updateStatus();
-  }
-
-  checkMatch() {
-      const [first, second] = this.gameState.flippedCards;
-
-      if (first.card.pokemon.id === second.card.pokemon.id) {
-          // Match found
-          first.card.matched = true;
-          second.card.matched = true;
-          this.gameState.matchedPairs++;
-          this.gameState.consecutiveMatches++;
-
-          // Check for power-up (3 consecutive matches)
-          if (this.gameState.consecutiveMatches >= 3) {
-              this.activatePowerup();
-              this.gameState.consecutiveMatches = 0;
-          }
-
-          // Check win condition
-          if (this.gameState.matchedPairs === parseInt(document.getElementById('total').textContent)) {
-              this.endGame(true);
-          }
-      } else {
-          // No match
-          setTimeout(() => {
-              first.element.classList.remove('flip');
-              second.element.classList.remove('flip');
-          }, 1000);
-          this.gameState.consecutiveMatches = 0;
-      }
-
-      this.gameState.flippedCards = [];
-      this.updateStatus();
-  }
-
-  activatePowerup() {
-      if (this.gameState.powerupActive) return;
-
-      this.gameState.powerupActive = true;
-      document.getElementById('powerupIndicator').style.display = 'block';
-
-      // Show all unmatched cards for 3 seconds
-      const unmatchedCards = document.querySelectorAll('.card:not(.flip)');
-      unmatchedCards.forEach(card => {
-          if (!this.gameState.cards[card.dataset.id].matched) {
-              card.classList.add('flip', 'powerup-flash');
-          }
-      });
-
-      setTimeout(() => {
-          unmatchedCards.forEach(card => {
-              if (!this.gameState.cards[card.dataset.id].matched) {
-                  card.classList.remove('flip', 'powerup-flash');
-              }
-          });
-          document.getElementById('powerupIndicator').style.display = 'none';
-          this.gameState.powerupActive = false;
-      }, 3000);
-  }
-
-  startTimer() {
-      this.gameState.timer = setInterval(() => {
-          this.gameState.timeLeft--;
-          this.updateStatus();
-
-          if (this.gameState.timeLeft <= 0) {
-              this.endGame(false);
-          }
-      }, 1000);
-  }
-
-  endGame(won) {
-      this.gameState.gameActive = false;
-      clearInterval(this.gameState.timer);
-
-      const title = won ? 'Congratulations!' : 'Game Over!';
-      const text = won 
-          ? `You matched all pairs in ${this.gameState.clicks} clicks!`
-          : 'Time\'s up! Better luck next time.';
-
-      this.showMessage(title, text);
-
-      // Remove click listeners from all cards
-      document.getElementById('game_grid').replaceWith(document.getElementById('game_grid').cloneNode(true));
-  }
-
-  showMessage(title, text) {
-      document.getElementById('messageTitle').textContent = title;
-      document.getElementById('messageText').textContent = text;
-      document.getElementById('gameMessage').style.display = 'block';
-  }
-
-  updateStatus() {
-      const remaining = parseInt(document.getElementById('total').textContent) - this.gameState.matchedPairs;
-      
-      document.getElementById('timer').textContent = this.formatTime(this.gameState.timeLeft);
-      document.getElementById('clicks').textContent = this.gameState.clicks;
-      document.getElementById('matched').textContent = this.gameState.matchedPairs;
-      document.getElementById('remaining').textContent = remaining;
-  }
-
-  formatTime(seconds) {
-      const mins = Math.floor(seconds / 60);
-      const secs = seconds % 60;
-      return `${mins}:${secs.toString().padStart(2, '0')}`;
-  }
-
-  resetGame() {
-      this.resetGameState();
-      document.getElementById('game_grid').innerHTML = '';
-      document.getElementById('gameMessage').style.display = 'none';
-      document.getElementById('powerupIndicator').style.display = 'none';
-      this.updateStatus();
-  }
-
-  resetGameState() {
-      if (this.gameState.timer) {
-          clearInterval(this.gameState.timer);
-      }
-
-      this.gameState = {
-          cards: [],
-          flippedCards: [],
-          matchedPairs: 0,
-          clicks: 0,
-          timeLeft: 0,
-          timer: null,
-          gameActive: false,
-          powerupActive: false,
-          consecutiveMatches: 0
-      };
-
-      document.getElementById('clicks').textContent = '0';
-      document.getElementById('matched').textContent = '0';
-      document.getElementById('remaining').textContent = '0';
-      document.getElementById('total').textContent = '0';
-      document.getElementById('timer').textContent = '--:--';
-  }
-
-  changeTheme(theme) {
-      if (theme === 'dark') {
-          document.body.classList.add('dark-theme');
-      } else {
-          document.body.classList.remove('dark-theme');
-      }
-      localStorage.setItem('pokemonGameTheme', theme);
-  }
-
-  loadTheme() {
-      const savedTheme = localStorage.getItem('pokemonGameTheme') || 'light';
-      document.getElementById('theme').value = savedTheme;
-      this.changeTheme(savedTheme);
-  }
-}
-
-// Initialize game when DOM is loaded
-document.addEventListener('DOMContentLoaded', () => {
-  window.game = new PokemonMemoryGame();
+// Initialize when page loads
+$(document).ready(function() {
+    initializeGame();
 });
 
-// Global reset function for message button
+function initializeGame() {
+    // Event listeners
+    $('#start-btn').click(startGame);
+    $('#reset-btn').click(resetGame);
+    $('#theme-btn').click(toggleTheme);
+    $('#powerup-btn').click(usePowerup);
+    $('#play-again').click(startGame);
+    
+    $('#difficulty').change(function() {
+        gameState.difficulty = $(this).val();
+        updateDifficultySettings();
+    });
+    
+    updateDisplay();
+}
+
+async function startGame() {
+    // Hide message
+    $('#message').addClass('hidden');
+    
+    // Reset game state
+    resetGameState();
+    
+    // Get difficulty settings
+    const settings = difficulties[gameState.difficulty];
+    gameState.totalPairs = settings.pairs;
+    gameState.timeLeft = settings.time;
+    
+    // Enable powerup
+    gameState.powerupUsed = false;
+    $('#powerup-btn').prop('disabled', false);
+    
+    try {
+        // Fetch Pokemon and create cards
+        await fetchPokemonAndCreateCards();
+        
+        // Start the game
+        gameState.gameActive = true;
+        gameState.gameStarted = true;
+        startTimer();
+        updateDisplay();
+        
+    } catch (error) {
+        console.error('Error starting game:', error);
+        showMessage('Error', 'Failed to load Pokemon. Please try again.');
+    }
+}
+
 function resetGame() {
-  window.game.resetGame();
+    clearTimer();
+    resetGameState();
+    $('#game-grid').empty();
+    $('#message').addClass('hidden');
+    updateDisplay();
+}
+
+function resetGameState() {
+    gameState.firstCard = null;
+    gameState.secondCard = null;
+    gameState.lockBoard = false;
+    gameState.gameActive = false;
+    gameState.gameStarted = false;
+    gameState.clicks = 0;
+    gameState.matches = 0;
+    gameState.powerupUsed = false;
+}
+
+async function fetchPokemonAndCreateCards() {
+    const settings = difficulties[gameState.difficulty];
+    const numPairs = settings.pairs;
+    
+    // Fetch unique Pokemon
+    gameState.pokemonData = await fetchRandomPokemon(numPairs);
+    
+    // Create card pairs
+    const cards = [...gameState.pokemonData, ...gameState.pokemonData];
+    
+    // Shuffle cards
+    shuffleArray(cards);
+    
+    // Create HTML
+    createCardElements(cards);
+}
+
+async function fetchRandomPokemon(count) {
+    const pokemon = [];
+    const usedIds = new Set();
+    
+    while (pokemon.length < count) {
+        const id = Math.floor(Math.random() * 1000) + 1;
+        
+        if (!usedIds.has(id)) {
+            try {
+                const response = await fetch(`https://pokeapi.co/api/v2/pokemon/${id}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    const imageUrl = data.sprites?.other?.['official-artwork']?.front_default;
+                    
+                    if (imageUrl) {
+                        pokemon.push({
+                            id: data.id,
+                            name: data.name,
+                            image: imageUrl
+                        });
+                        usedIds.add(id);
+                    }
+                }
+            } catch (error) {
+                console.error(`Failed to fetch Pokemon ${id}:`, error);
+            }
+        }
+    }
+    
+    return pokemon;
+}
+
+function shuffleArray(array) {
+    for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+    }
+}
+
+function createCardElements(cards) {
+    const grid = $('#game-grid');
+    grid.empty();
+    
+    cards.forEach((pokemon, index) => {
+        const cardHTML = `
+            <div class="card" data-pokemon-id="${pokemon.id}">
+                <div class="card-inner">
+                    <div class="card-face card-back">
+                        <img src="back.webp" alt="Card back">
+                    </div>
+                    <div class="card-face card-front">
+                        <img src="${pokemon.image}" alt="${pokemon.name}">
+                    </div>
+                </div>
+            </div>
+        `;
+        grid.append(cardHTML);
+    });
+    
+    // Add click handlers
+    $('.card').click(handleCardClick);
+}
+
+function handleCardClick() {
+    const $card = $(this);
+    
+    // Check if click is valid
+    if (gameState.lockBoard) return;
+    if (!gameState.gameActive) return;
+    if ($card.hasClass('flipped')) return;
+    if ($card.hasClass('matched')) return;
+    if ($card === gameState.firstCard) return;
+    
+    // Flip the card
+    flipCard($card);
+    
+    // Handle game logic
+    if (!gameState.firstCard) {
+        // First card clicked
+        gameState.firstCard = $card;
+    } else {
+        // Second card clicked
+        gameState.secondCard = $card;
+        gameState.lockBoard = true;
+        
+        // Check for match after a short delay
+        setTimeout(checkForMatch, 500);
+    }
+    
+    // Update click counter
+    gameState.clicks++;
+    updateDisplay();
+}
+
+function flipCard($card) {
+    $card.addClass('flipped');
+}
+
+function unflipCard($card) {
+    $card.removeClass('flipped');
+}
+
+function checkForMatch() {
+    const firstId = gameState.firstCard.data('pokemon-id');
+    const secondId = gameState.secondCard.data('pokemon-id');
+    
+    if (firstId === secondId) {
+        // Match found
+        handleMatch();
+    } else {
+        // No match
+        handleNoMatch();
+    }
+}
+
+function handleMatch() {
+    gameState.firstCard.addClass('matched');
+    gameState.secondCard.addClass('matched');
+    gameState.matches++;
+    
+    resetBoard();
+    
+    // Check for win
+    if (gameState.matches === gameState.totalPairs) {
+        setTimeout(() => endGame(true), 250);
+    }
+    
+    updateDisplay();
+}
+
+function handleNoMatch() {
+    // Store references before clearing
+    const firstCard = gameState.firstCard;
+    const secondCard = gameState.secondCard;
+    
+    setTimeout(() => {
+        unflipCard(firstCard);
+        unflipCard(secondCard);
+        resetBoard();
+    }, 250);
+}
+
+function resetBoard() {
+    gameState.firstCard = null;
+    gameState.secondCard = null;
+    gameState.lockBoard = false;
+}
+
+function startTimer() {
+    clearTimer();
+    gameState.timer = setInterval(() => {
+        gameState.timeLeft--;
+        updateDisplay();
+        
+        if (gameState.timeLeft <= 0) {
+            endGame(false);
+        }
+    }, 1000);
+}
+
+function clearTimer() {
+    if (gameState.timer) {
+        clearInterval(gameState.timer);
+        gameState.timer = null;
+    }
+}
+
+function endGame(won) {
+    gameState.gameActive = false;
+    clearTimer();
+    
+    // Remove click handlers
+    $('.card').off('click');
+    
+    const title = won ? 'Congratulations!' : 'Game Over!';
+    const message = won 
+        ? `You won with ${gameState.clicks} clicks and ${gameState.timeLeft} seconds remaining!`
+        : `Time's up! You matched ${gameState.matches} out of ${gameState.totalPairs} pairs.`;
+    
+    setTimeout(() => showMessage(title, message), 500);
+}
+
+function showMessage(title, text) {
+    $('#message-title').text(title);
+    $('#message-text').text(text);
+    $('#message').removeClass('hidden');
+}
+
+function usePowerup() {
+    if (!gameState.gameActive || gameState.powerupUsed) return;
+    
+    gameState.powerupUsed = true;
+    $('#powerup-btn').prop('disabled', true);
+    
+    // Show all unmatched cards
+    const unmatched = $('.card:not(.matched)');
+    unmatched.addClass('flipped powerup-glow');
+    
+    // Hide after 3 seconds
+    setTimeout(() => {
+        unmatched.removeClass('flipped powerup-glow');
+    }, 3000);
+}
+
+function toggleTheme() {
+    $('body').toggleClass('dark');
+}
+
+function updateDifficultySettings() {
+    if (!gameState.gameStarted) {
+        const settings = difficulties[gameState.difficulty];
+        gameState.totalPairs = settings.pairs;
+        gameState.timeLeft = settings.time;
+        updateDisplay();
+    }
+}
+
+function updateDisplay() {
+    $('#timer').text(gameState.timeLeft);
+    $('#clicks').text(gameState.clicks);
+    $('#matches').text(`${gameState.matches}/${gameState.totalPairs}`);
+    $('#pairs-left').text(gameState.totalPairs - gameState.matches);
 }
